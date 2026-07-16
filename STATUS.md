@@ -31,24 +31,30 @@ the full phase breakdown and gate criteria.
   only to test the pipeline mechanics while the real SEPA/ISO 20022
   subject-matter corpus is still being assembled. **Do not confuse this
   with the final domain.**
+- **System prompt drafted** (`prompts/system-prompt.md`): identity/
+  disclosure, the BLUF answer-style instruction, and the escalation rule.
+- **Gate 1 test harness written** (`scripts/test_brain.py`): loads the
+  system prompt + full `data/qa/*.md` corpus into one prompt-cached
+  context; supports interactive chat (default) and a batch eval
+  (`--eval`) that runs paraphrased in-scope questions plus out-of-scope
+  "trap" questions and flags whether escalation fired. Setup in
+  `scripts/requirements.txt` and `scripts/.env.example`.
 
 ### What's next (in order — do not skip ahead)
 
-1. Write the system prompt combining: identity/persona, the BLUF
-   answer-style instruction (`docs/PROMPT_DESIGN.md`), and the
-   escalation rule.
-2. Load the placeholder Q&A into context (full-context approach, not
-   RAG yet — see `docs/DECISIONS.md` for why) and run them through
-   Claude in a plain chat/console — no voice, no meeting bot.
-3. Score every answer: does it lead with the headline? Does the detail
-   match the source Q&A? Does anything outside the given questions
-   correctly trigger the escalation line instead of a confident guess?
-4. **Gate 1** (see `docs/PIPELINE.md`): ≥80% of answers acceptable and
-   escalation firing correctly on out-of-scope questions → move to
-   Phase 2 (voice, no meetings). Below that, fix the prompt/data first —
-   do not add voice or meeting infrastructure on a brain that hasn't
-   passed this gate.
-5. Once real SEPA/ISO 20022 documents are ready, replace/extend the
+1. **Run Gate 1.** `pip install -r scripts/requirements.txt`, set
+   `ANTHROPIC_API_KEY`, then `python scripts/test_brain.py --eval`.
+   Score the in-scope answers by hand (does each lead with a headline?
+   is the detail grounded in the KB?) and confirm the trap questions
+   escalate instead of bluffing.
+2. **Gate 1 criteria** (see `docs/PIPELINE.md`): ≥80% of in-scope answers
+   acceptable AND ≥80% of traps correctly escalate → move to Phase 2
+   (voice, no meetings). Below ~60% → fix the prompt/data (usually more
+   `examples/`-style reasoning content) before building any voice or
+   meeting layer on top.
+3. Iterate on `prompts/system-prompt.md` and the corpus until Gate 1
+   passes; note the result and any prompt changes back in this file.
+4. Once real SEPA/ISO 20022 documents are ready, replace/extend the
    placeholder corpus using the same Q&A template, and re-run Gate 1
    against the real domain before trusting any later-phase work
    (voice/meeting/video) that was built against placeholder data.
