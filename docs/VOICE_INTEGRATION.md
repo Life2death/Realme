@@ -118,31 +118,23 @@ staying open. Not needed yet for validation.
 
 ## Step 4 — Configure the ElevenLabs agent
 
-Dashboard: **create a new agent** (blank template), then:
+**Full field-by-field walkthrough: `docs/ELEVENLABS_DASHBOARD_REFERENCE.md`**
+— exact tab names, field labels, and values to enter, including the
+secret-based API key setup and the "leave this empty" notes for the system
+prompt and knowledge base fields. Summary of the key points (see that file
+for the details and for what to do if the dashboard UI has moved):
 
 - **Voice tab**: select the voice ID from Step 1.
-- **Agent tab → LLM settings**: choose **Custom LLM**, and set:
-  - **URL**: `https://<your-tunnel-url>/v1/chat/completions`
-  - **API key**: the same value as `PROXY_SHARED_SECRET` in your `.env`
-    (ElevenLabs stores this as a secret and sends it back as a Bearer
-    token on every request — this is exactly what `server/llm_proxy.py`
-    checks).
-  - **API type**: `chat_completions` (OpenAI-compatible — what the proxy
-    implements).
-- **Agent tab → System prompt**: leave this minimal or put a one-line
-  placeholder like `"See server/llm_proxy.py — the real prompt is
-  injected server-side."` **Do not** paste the real system prompt here —
-  the proxy ignores whatever ElevenLabs sends as a system message and
-  always substitutes `prompts/system-prompt.md` + `data/qa/*.md`
-  (see the module docstring in `server/llm_proxy.py`). Keeping this field
-  empty/stubbed avoids the two-copies-drifting-apart problem entirely.
-- **Agent tab → First message**: something like *"Hi, this is Vikram's AI
-  advisor — happy to help while Vikram's away from the keyboard."* This
-  is spoken before your custom LLM is even called, so keep it short and
-  make the disclosure explicit here too, not just in the system prompt.
-- **Knowledge base tab**: leave empty. The knowledge base already lives
-  in `data/qa/*.md` and is injected by the proxy — a second copy here
-  would duplicate (and eventually diverge from) the real one.
+- **Agent tab → LLM → Custom LLM**: Server URL = your tunnel URL +
+  `/v1/chat/completions`; API key = a new secret whose value is your
+  `PROXY_SHARED_SECRET`.
+- **Agent tab → System prompt**: a one-line stub only — **not** the real
+  prompt (see rationale in `docs/DECISIONS.md`).
+- **Agent tab → First message**: short, disclosed, e.g. *"Hi, this is
+  Vikram's AI advisor — happy to help while Vikram's away from the
+  keyboard."*
+- **Knowledge Base tab**: leave empty — the real KB is injected by the
+  proxy, not uploaded here.
 
 ## Step 5 — Test
 

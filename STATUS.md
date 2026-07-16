@@ -70,10 +70,21 @@ breakdown and `docs/VOICE_INTEGRATION.md` for the Phase 2 execution guide.
   Phase 2 runs on the identical Gate-1-validated prompt/KB instead of a
   second hand-pasted copy, and isn't limited to whichever older Claude
   versions ElevenLabs has added to their picker.
+- **ElevenLabs dashboard field reference written**
+  (`docs/ELEVENLABS_DASHBOARD_REFERENCE.md`): exact tab names and field
+  labels for the agent editor (Agent / Voice / Knowledge Base / Analysis /
+  Call history), the Custom LLM setup flow (Server URL, Model ID, the
+  secret-based API key field), and explicit "leave this empty" notes for
+  the system-prompt and knowledge-base fields, cross-referenced from
+  `docs/VOICE_INTEGRATION.md` Step 4. Built from ElevenLabs' own
+  documentation, not a live login — flagged as something to correct in
+  the repo if the actual dashboard differs, rather than a one-off answer
+  in chat.
 
 ### What's next (in order — do not skip ahead)
 
-1. **Finish Phase 2 per `docs/VOICE_INTEGRATION.md`:**
+1. **Finish Phase 2 per `docs/VOICE_INTEGRATION.md`** (field-level detail
+   in `docs/ELEVENLABS_DASHBOARD_REFERENCE.md`):
    - Clone the voice in the ElevenLabs dashboard (Step 1).
    - Run the proxy + expose it via a tunnel (ngrok or similar) (Steps 2–3
      — code is ready, this is just running it and confirming the public

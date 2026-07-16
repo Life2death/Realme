@@ -47,6 +47,7 @@ assuming any later phase (meetings, video) has started.
 | `docs/DECISIONS.md` | Why we chose this approach; what we ruled out and why |
 | `docs/PROMPT_DESIGN.md` | How to write the system prompt and answer style (BLUF pattern) |
 | `docs/VOICE_INTEGRATION.md` | Phase 2 setup guide: ElevenLabs voice clone + agent + proxy |
+| `docs/ELEVENLABS_DASHBOARD_REFERENCE.md` | Field-by-field ElevenLabs dashboard reference (exact tabs/labels/values) |
 | `prompts/system-prompt.md` | The brain's system prompt (identity, answer style, escalation rule) |
 | `scripts/brain.py` | **Single source of truth** for the brain — loads the system prompt + `data/qa/*.md`. Used by both `scripts/test_brain.py` (Phase 1) and `server/llm_proxy.py` (Phase 2). Never duplicate this logic elsewhere. |
 | `scripts/test_brain.py` | Phase 1 Gate 1 test harness (interactive + `--eval` batch mode) |
