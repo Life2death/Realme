@@ -15,10 +15,10 @@ All four accounts are created and ready:
 
 ## Current phase
 
-**Phase 1 — Brain validation, text-only.** No voice, no meeting bot, no
-avatar yet. Goal: prove the LLM + knowledge base gives client-acceptable
-answers before building anything on top of it. See `docs/PIPELINE.md` for
-the full phase breakdown and gate criteria.
+**Phase 1 — Brain validation, text-only — GATE 1 PASSED (placeholder
+data).** No voice, no meeting bot, no avatar yet. Ready to begin Phase 2
+(voice). See `docs/PIPELINE.md` for the full phase breakdown and gate
+criteria.
 
 ### What's done
 
@@ -37,27 +37,37 @@ the full phase breakdown and gate criteria.
   system prompt + full `data/qa/*.md` corpus into one prompt-cached
   context; supports interactive chat (default) and a batch eval
   (`--eval`) that runs paraphrased in-scope questions plus out-of-scope
-  "trap" questions and flags whether escalation fired. Setup in
-  `scripts/requirements.txt` and `scripts/.env.example`.
+  "trap" questions and flags whether escalation fired. Also auto-loads a
+  `.env` file at the repo root if present (no need to `export` the key
+  manually) — see `scripts/.env.example`.
+- **Gate 1 run and PASSED**, against the placeholder corpus:
+  - 7/7 in-scope answers acceptable (100%, target ≥80%) — each led with a
+    headline, detail was grounded in real KB facts/numbers, no invented
+    content.
+  - 5/5 traps correctly declined/escalated on manual read (100%, target
+    ≥80%). Notably: the "which Citi stream / SLA numbers" trap correctly
+    refused to invent the detail the KB itself flags as
+    needs-personalization, and the day-rate / audit-guarantee / Delta
+    Lake partitioning traps all deferred to Vikram instead of bluffing.
+  - Minor tuning note (not a blocker): the disclosure line ("You're
+    speaking with Vikram's AI advisor...") fired on every escalated
+    answer rather than only when asked/assumed — fine for now, revisit
+    if it reads as repetitive once in a live Phase 3 meeting.
 
 ### What's next (in order — do not skip ahead)
 
-1. **Run Gate 1.** `pip install -r scripts/requirements.txt`, set
-   `ANTHROPIC_API_KEY`, then `python scripts/test_brain.py --eval`.
-   Score the in-scope answers by hand (does each lead with a headline?
-   is the detail grounded in the KB?) and confirm the trap questions
-   escalate instead of bluffing.
-2. **Gate 1 criteria** (see `docs/PIPELINE.md`): ≥80% of in-scope answers
-   acceptable AND ≥80% of traps correctly escalate → move to Phase 2
-   (voice, no meetings). Below ~60% → fix the prompt/data (usually more
-   `examples/`-style reasoning content) before building any voice or
-   meeting layer on top.
-3. Iterate on `prompts/system-prompt.md` and the corpus until Gate 1
-   passes; note the result and any prompt changes back in this file.
-4. Once real SEPA/ISO 20022 documents are ready, replace/extend the
+1. **Begin Phase 2 (voice, no meetings yet)** per `docs/PIPELINE.md`:
+   clone the voice in ElevenLabs, stand up their Conversational AI agent
+   with this same brain (system prompt + KB) as the backing logic, and
+   re-run a subset of the eval questions **by voice** — watch for
+   mispronounced domain acronyms and answers that run too long spoken.
+2. Once real SEPA/ISO 20022 documents are ready, replace/extend the
    placeholder corpus using the same Q&A template, and re-run Gate 1
    against the real domain before trusting any later-phase work
-   (voice/meeting/video) that was built against placeholder data.
+   (voice/meeting/video) that was built against placeholder data. Phase
+   2 work can proceed on placeholder data in the meantime — the goal
+   right now is validating the voice *mechanics*, not the final domain
+   answers.
 
 ## Known open items
 
@@ -66,5 +76,5 @@ the full phase breakdown and gate criteria.
   is being used so the pipeline itself isn't blocked on that.
 - Only 7 of the intended 10 placeholder questions have been supplied
   (Q1, Q2, Q3, Q6, Q7, Q8, Q9). Q4, Q5, and Q10 are not yet defined.
-- No voice, meeting-bot, or avatar integration exists yet — do not assume
-  any of `docs/PIPELINE.md` Phase 2 onward has started.
+- No voice, meeting-bot, or avatar integration exists yet — Phase 2 has
+  not started (Gate 1 passing unblocks it, but nothing has been built).

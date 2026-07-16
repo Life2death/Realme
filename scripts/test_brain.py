@@ -28,10 +28,35 @@ from __future__ import annotations
 
 import argparse
 import glob
+import os
 import sys
 from pathlib import Path
 
 import anthropic
+
+# ---------------------------------------------------------------------------
+# .env loading (no extra dependency — a minimal KEY=VALUE parser)
+# ---------------------------------------------------------------------------
+# If ANTHROPIC_API_KEY is already set in the environment, that always wins.
+# Otherwise, if a .env file sits next to this repo (see scripts/.env.example),
+# read it and populate os.environ from it. This is intentionally tiny — it
+# does not handle multi-line values or full shell-style quoting, just the
+# simple KEY=VALUE / KEY = VALUE cases from a hand-edited .env file.
+
+def _load_dotenv(repo_root: Path) -> None:
+    env_path = repo_root / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -244,6 +269,16 @@ def main() -> None:
         help="Run the batch eval (in-scope + trap questions) instead of chat.",
     )
     args = parser.parse_args()
+
+    # Load .env (if present) before anything reads ANTHROPIC_API_KEY. A real
+    # environment variable always takes precedence over the .env file.
+    _load_dotenv(REPO_ROOT)
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        sys.exit(
+            "ANTHROPIC_API_KEY is not set. Either export it in your shell, "
+            "or create a .env file at the repo root (see scripts/.env.example)."
+        )
 
     # anthropic.Anthropic() reads ANTHROPIC_API_KEY from the environment.
     client = anthropic.Anthropic()
