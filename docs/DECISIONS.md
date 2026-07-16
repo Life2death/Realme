@@ -116,6 +116,35 @@ scope change: see `STATUS.md` for what happens when the real corpus
 arrives (same template, same Gate 1 re-run, against the real domain,
 before trusting any phase built against placeholder data).
 
+## Why a custom LLM proxy for ElevenLabs, instead of ElevenLabs' built-in Claude selection?
+
+ElevenLabs' Conversational AI agents can run on a built-in Claude model
+(their picker includes several Claude versions, though not always the
+newest ones — check current availability) or call a self-hosted "custom
+LLM" that speaks the standard OpenAI chat-completions format. We chose the
+custom LLM route (`server/llm_proxy.py`) for three reasons: (1) it reuses
+the exact system prompt + knowledge base that already passed Gate 1
+(`scripts/brain.py`) instead of a second copy hand-pasted into ElevenLabs'
+own system-prompt field, which would silently drift out of sync the moment
+either copy is edited; (2) it lets us use whichever current Claude model we
+want, independent of ElevenLabs' picker; (3) ElevenLabs' own knowledge-base
+feature does its own RAG/chunking, which is a different retrieval design
+than the full-context-loading decision already made above — the custom LLM
+path keeps one retrieval design instead of two. The cost is running and
+exposing a small proxy server, which is a few hours of work, not a
+structural risk. See `docs/VOICE_INTEGRATION.md` for the full setup.
+
+## Why the proxy ignores whatever system message ElevenLabs forwards
+
+`server/llm_proxy.py` always substitutes `prompts/system-prompt.md` +
+`data/qa/*.md` and drops any system-role message in the incoming request,
+even though ElevenLabs' agent config has its own system-prompt field. This
+is deliberate: if both the ElevenLabs dashboard field and the repo's real
+prompt could each independently affect behavior, they will eventually say
+different things and nobody will know which one actually ran. Keeping
+exactly one source of truth (`scripts/brain.py`) means every phase — text
+eval, voice, and eventually meetings — is provably running the same brain.
+
 ## Meeting-region choice for Recall.ai
 
 Recall.ai signup is region-scoped (`us-west-2`, `eu-central-1`,

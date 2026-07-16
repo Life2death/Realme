@@ -4,7 +4,9 @@ Phase 1 brain-validation harness for the Realme AI advisor.
 
 This is the Gate 1 tool (see docs/PIPELINE.md). It loads the system prompt
 (prompts/system-prompt.md) plus the entire knowledge base (data/qa/*.md)
-into a single prompt-cached context, then lets you either:
+into a single prompt-cached context — via scripts/brain.py, the single
+source of truth for the brain also used by server/llm_proxy.py in Phase 2 —
+then lets you either:
 
   * chat with the brain interactively (default), or
   * run a batch eval of in-scope + out-of-scope "trap" questions to check
@@ -20,6 +22,7 @@ Usage:
     # set your key first (see scripts/.env.example):
     #   export ANTHROPIC_API_KEY=sk-ant-...        (macOS/Linux)
     #   $env:ANTHROPIC_API_KEY = "sk-ant-..."      (PowerShell)
+    # or just create a .env file at the repo root — it's loaded automatically.
     python scripts/test_brain.py            # interactive chat
     python scripts/test_brain.py --eval     # batch eval with scoring prompts
 """
@@ -27,62 +30,22 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import glob
-import os
-import sys
-from pathlib import Path
 
 import anthropic
 
-# ---------------------------------------------------------------------------
-# .env loading (no extra dependency — a minimal KEY=VALUE parser)
-# ---------------------------------------------------------------------------
-# If ANTHROPIC_API_KEY is already set in the environment, that always wins.
-# Otherwise, if a .env file sits next to this repo (see scripts/.env.example),
-# read it and populate os.environ from it. This is intentionally tiny — it
-# does not handle multi-line values or full shell-style quoting, just the
-# simple KEY=VALUE / KEY = VALUE cases from a hand-edited .env file.
-
-def _load_dotenv(repo_root: Path) -> None:
-    env_path = repo_root / ".env"
-    if not env_path.exists():
-        return
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+import brain
 
 # The brain will eventually drive a real-time voice agent, where latency and
 # per-minute cost matter. claude-opus-4-8 is the highest-quality option and a
 # good baseline for judging whether the KNOWLEDGE BASE itself is good enough.
-# For the production voice pipeline, try claude-sonnet-5 — materially cheaper
-# and faster, and often indistinguishable for this kind of Q&A. Swap here and
-# re-run the eval to compare.
+# For the production voice pipeline (server/llm_proxy.py), claude-sonnet-5 is
+# materially cheaper and faster, and often indistinguishable for this kind of
+# Q&A. Swap here and re-run the eval to compare.
 MODEL = "claude-opus-4-8"
 
 # BLUF answers are short; 2048 is plenty and keeps latency realistic for the
 # voice use case. Raise only if you see answers truncated mid-sentence.
 MAX_TOKENS = 2048
-
-# Repo root = one level up from this scripts/ directory, resolved absolutely
-# so the script works regardless of the current working directory.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SYSTEM_PROMPT_PATH = REPO_ROOT / "prompts" / "system-prompt.md"
-KNOWLEDGE_GLOB = str(REPO_ROOT / "data" / "qa" / "*.md")
-
-# Phrase the brain uses when it escalates (see prompts/system-prompt.md).
-# Used only as a rough heuristic to flag escalation in --eval output.
-ESCALATION_MARKER = "back to vikram"
 
 
 # ---------------------------------------------------------------------------
@@ -118,51 +81,6 @@ TRAP_QUESTIONS = [
 
 
 # ---------------------------------------------------------------------------
-# Setup
-# ---------------------------------------------------------------------------
-
-def load_system_blocks() -> list[dict]:
-    """Assemble the cached system context: prompt + full knowledge base.
-
-    Returns a two-block system array. A cache_control breakpoint on the LAST
-    (knowledge-base) block caches BOTH blocks as a stable prefix, so every
-    question after the first is billed at ~10% for this shared context. The
-    varying question goes in `messages`, never here — see docs/DECISIONS.md
-    (full-context loading) and the prompt-caching prefix rule.
-    """
-    if not SYSTEM_PROMPT_PATH.exists():
-        sys.exit(f"System prompt not found: {SYSTEM_PROMPT_PATH}")
-
-    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
-
-    kb_files = sorted(glob.glob(KNOWLEDGE_GLOB))
-    if not kb_files:
-        sys.exit(f"No knowledge-base files found matching: {KNOWLEDGE_GLOB}")
-
-    kb_parts = []
-    for path in kb_files:
-        kb_parts.append(f"===== FILE: {Path(path).name} =====\n")
-        kb_parts.append(Path(path).read_text(encoding="utf-8"))
-        kb_parts.append("\n\n")
-    knowledge_base = "".join(kb_parts)
-
-    print(f"Loaded system prompt + {len(kb_files)} knowledge file(s):", file=sys.stderr)
-    for path in kb_files:
-        print(f"  - {Path(path).name}", file=sys.stderr)
-
-    return [
-        {"type": "text", "text": system_prompt},
-        {
-            "type": "text",
-            "text": "KNOWLEDGE BASE\n\n" + knowledge_base,
-            # Cache the stable prefix (prompt + KB). Prefix-match caching means
-            # this one breakpoint covers both blocks.
-            "cache_control": {"type": "ephemeral"},
-        },
-    ]
-
-
-# ---------------------------------------------------------------------------
 # Modes
 # ---------------------------------------------------------------------------
 
@@ -195,7 +113,7 @@ def run_eval(client, system_blocks) -> None:
         print(f"\n[{i}] Q: {q}\n")
         answer = answer_once(client, system_blocks, q)
         print(answer)
-        if ESCALATION_MARKER in answer.lower():
+        if brain.ESCALATION_MARKER in answer.lower():
             print("\n   >> NOTE: this in-scope question escalated. Should it have? "
                   "(If the KB genuinely lacks it, escalation is correct.)")
         print("\n" + "-" * 78)
@@ -208,7 +126,7 @@ def run_eval(client, system_blocks) -> None:
         print(f"\n[T{i}] Q: {q}\n")
         answer = answer_once(client, system_blocks, q)
         print(answer)
-        escalated = ESCALATION_MARKER in answer.lower()
+        escalated = brain.ESCALATION_MARKER in answer.lower()
         if escalated:
             passed += 1
             print("\n   >> PASS (escalated as expected)")
@@ -270,19 +188,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Load .env (if present) before anything reads ANTHROPIC_API_KEY. A real
-    # environment variable always takes precedence over the .env file.
-    _load_dotenv(REPO_ROOT)
-
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit(
-            "ANTHROPIC_API_KEY is not set. Either export it in your shell, "
-            "or create a .env file at the repo root (see scripts/.env.example)."
-        )
-
-    # anthropic.Anthropic() reads ANTHROPIC_API_KEY from the environment.
-    client = anthropic.Anthropic()
-    system_blocks = load_system_blocks()
+    anthropic_key = brain.require_env(
+        "ANTHROPIC_API_KEY",
+        "Either export it in your shell, or create a .env file at the repo "
+        "root (see scripts/.env.example).",
+    )
+    client = anthropic.Anthropic(api_key=anthropic_key)
+    system_blocks = brain.load_system_blocks()
 
     if args.eval:
         run_eval(client, system_blocks)

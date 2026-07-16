@@ -31,10 +31,10 @@ the live human.
 ## Current phase
 
 See [`STATUS.md`](STATUS.md) for the live status. As of the last update:
-Anthropic, ElevenLabs, Recall.ai, and HeyGen accounts are all created.
-The project is in **Phase 1 (brain validation, text-only)** — proving the
-LLM + knowledge base answers well *before* any voice or meeting plumbing
-is trusted. Read `STATUS.md` before assuming any later phase has started.
+Gate 1 has passed (against placeholder data) and the project is moving
+into **Phase 2 (voice, no meetings yet)** — wiring the Gate-1-validated
+brain into an ElevenLabs Conversational AI agent. Read `STATUS.md` before
+assuming any later phase (meetings, video) has started.
 
 ## How the repo is organized
 
@@ -46,6 +46,12 @@ is trusted. Read `STATUS.md` before assuming any later phase has started.
 | `docs/ARCHITECTURE.md` | Technical architecture — components and data flow |
 | `docs/DECISIONS.md` | Why we chose this approach; what we ruled out and why |
 | `docs/PROMPT_DESIGN.md` | How to write the system prompt and answer style (BLUF pattern) |
+| `docs/VOICE_INTEGRATION.md` | Phase 2 setup guide: ElevenLabs voice clone + agent + proxy |
+| `prompts/system-prompt.md` | The brain's system prompt (identity, answer style, escalation rule) |
+| `scripts/brain.py` | **Single source of truth** for the brain — loads the system prompt + `data/qa/*.md`. Used by both `scripts/test_brain.py` (Phase 1) and `server/llm_proxy.py` (Phase 2). Never duplicate this logic elsewhere. |
+| `scripts/test_brain.py` | Phase 1 Gate 1 test harness (interactive + `--eval` batch mode) |
+| `server/llm_proxy.py` | Phase 2 voice proxy — OpenAI-compatible endpoint backed by `brain.py`, for ElevenLabs' Custom LLM integration |
+| `server/test_proxy.py` | Standalone smoke test for the proxy (no ElevenLabs involved) |
 | `data/qa/generic-test-questions.md` | **Placeholder/test** Q&A corpus — see warning below |
 
 ## ⚠️ Important: the current data is NOT the real knowledge base
